@@ -10,15 +10,12 @@ from tkinter import ttk
 
 if os.path.exists('./svrcfg.json') == False:
     with open("./svrcfg.json", 'w', encoding = 'utf-8') as fp:
-        list_localsvr = [{'svrIP':'192.168.1.1', 'svrPort':'8080', 'svrPass':'123456', 
+        list_localtestsvr = [{'svrIP':'192.168.1.1', 'svrPort':'8080', 'svrPass':'123456', 
                     'encrpMethod':'chacha256', 'svrRmk':'Local'}]
-        json.dump(list_localsvr, fp)
+        json.dump(list_localtestsvr, fp)
 
 with open("./svrcfg.json", encoding = 'utf-8') as fp:
-    dict_svrs = json.load(fp)
-
-PPshow = tkinter.IntVar
-encrpMethod = tkinter.StringVar
+    list_svrs = json.load(fp)
 
 rootWindow = tkinter.Tk()
 label_svrList = tkinter.Label(rootWindow)
@@ -26,6 +23,7 @@ listbox_svrList = tkinter.Listbox(rootWindow)
 button_addSvr = tkinter.Button(rootWindow)
 button_delSvr = tkinter.Button(rootWindow)
 button_connSvr = tkinter.Button(rootWindow)
+button_disconnSvr = tkinter.Button(rootWindow)
 label_svrIP = tkinter.Label(rootWindow)
 entry_svrIP = tkinter.Entry(rootWindow)
 label_svrPort = tkinter.Label(rootWindow)
@@ -40,24 +38,33 @@ entry_svrRmk = tkinter.Entry(rootWindow)
 label_ProxyPort = tkinter.Label(rootWindow)
 entry_ProxyPort = tkinter.Entry(rootWindow)
 
+PPshow = tkinter.IntVar()
+encrpMethod = tkinter.StringVar()
 
 def writeCfg():
     with open('./svrcfg.json', 'w', encoding = 'utf-8') as wfp:
-        json.dump(dict_svrs, wfp)
+        json.dump(list_svrs, wfp)
 
 def refreshsvrList():
     listbox_svrList.delete(0, 'end')
-    for dict_svr in dict_svrs:
+    for dict_svr in list_svrs:
         if dict_svr['svrRmk'] == '':
             listbox_svrList.insert('end', dict_svr['svrIP'])
         else:
             listbox_svrList.insert('end', dict_svr['svrRmk'])
 
+def checkSelected():
+    tuple_selectedSvr = listbox_svrList.curselection()
+    if not tuple_selectedSvr:
+        tkinter.messagebox.showerror('ERROR', 'selected error')
+        return False
+    return True
+
 def addSvr():
     svrIP = str(entry_svrIP.get())
     svrPort = str(entry_svrPort.get())
     svrPass = str(entry_svrPass.get())
-    # encrpMethod
+    encrpMethod = str(combox_encrpMethod.get())
     svrRmk = str(entry_svrRmk.get())
     ProxyPort = str(entry_ProxyPort.get())
 
@@ -68,27 +75,66 @@ def addSvr():
 
     if not re.match('^(\d){1,3}\.(\d){1,3}\.(\d){1,3}\.(\d){1,3}$', svrIP):
         tkinter.messagebox.showerror(title = 'ERROR',
-                        message = 'IP invalid!')
+                        message = 'Sever IP invalid!')
+        return
+    
+    if not re.match('^(\d){1,5}$', svrPort):
+        tkinter.messagebox.showerror(title = 'ERROR',
+                        message = 'Sever Port invalid!')
         return
 
     dict_curSvr = {'svrIP':svrIP, 'svrPort':svrPort, 'svrPass':svrPass,
-                  'encrpMethod':str(encrpMethod), 'svrRmk':svrRmk}
+                  'encrpMethod':encrpMethod, 'svrRmk':svrRmk}
 
-    for dict_svrincfg in dict_svrs:
+    for dict_svrincfg in list_svrs:
         if dict_svrincfg['svrIP'] == dict_curSvr['svrIP']:
             tkinter.messagebox.showwarning(title = 'ERROR',
                         message = 'This IP is already in your list')
             return
     
-    dict_svrs.append(dict_curSvr)
+    list_svrs.append(dict_curSvr)
     writeCfg()
     refreshsvrList()
 
 def delSvr():
-    curidx = int(listbox_svrList.curselection()[0])
-    dict_svrs.pop(curidx)
-    writeCfg()
-    refreshsvrList()
+    if checkSelected() == False:
+        return
+
+    curidx = int(tuple_selectedSvr[0])
+    if list_svrs[curidx]['svrRmk'] == '':
+        str_svrinfo = list_svrs[curidx]['svrIP']
+    else:
+        str_svrinfo = list_svrs[curidx]['svrRmk']
+    
+    res = tkinter.messagebox.askokcancel('', 
+    'Do you want to delete the server '+str_svrinfo)
+        
+    if res == True:
+        list_svrs.pop(curidx)
+        writeCfg()
+        refreshsvrList()
+
+def connSvr():
+    if checkSelected() == False:
+        return
+    
+    curidx = int(tuple_selectedSvr[0])
+    cursvrIP = list_svrs[curidx]['svrIP']
+    cursvrPass = list_svrs[curidx]['svrPass']
+    cursvrPort = list_svrs[curidx]['svrPort']
+    cursvrEncrp = list_svrs[curidx]['encrpMethod']
+    
+    
+    return
+
+def disconnSvr():
+    if checkSelected() == False:
+        return
+    
+    curidx = int(tuple_selectedSvr[0])
+
+
+    return 
 
 def showPassword():
     if PPshow.get() == 0:
@@ -116,8 +162,11 @@ def initWindow():
     button_delSvr.config(text = '删除(D)', command = delSvr)
     button_delSvr.place(x = 100, y = 220, width = 80, height = 25)
 
-    button_connSvr.config(text = '复制(C)')
+    button_connSvr.config(text = '连接(C)', command = connSvr)
     button_connSvr.place(x = 10, y = 250, width = 80, height = 25)
+
+    button_disconnSvr.config(text = '断开(D)', command = disconnSvr)
+    button_disconnSvr.place(x = 100, y = 250, width = 80, height = 25)
 
     label_svrIP.config(text = '*服务器地址')
     label_svrIP.place(x = 185, y = 30, width = 80, height = 20)
@@ -135,8 +184,8 @@ def initWindow():
     entry_svrPass.config(show = '*')
     entry_svrPass.place(x = 265, y = 90, width = 165, height = 20)
 
-    CekBtn_showPass.config(text = '显示密码', variable = PPshow, 
-                           command = showPassword)
+    CekBtn_showPass.config(text = '显示密码', variable = PPshow, onvalue = 1, 
+                           offvalue = 0, command = showPassword)
     CekBtn_showPass.place(x = 260, y = 120, height = 20)
 
     label_encrpMethod.config(text = '*加密方式')
@@ -148,7 +197,7 @@ def initWindow():
     combox_encrpMethod['values'] = ('aes-256-cfb', 'aes-128-cfb',
                                     'chacha20', 'chacha20-ietf',
                                     'aes-256-gcm', 'aes-128-gcm',
-                                    'chacha20-poly1305', 
+                                    'chacha20-poly1305',
                                     'chacha20-ietf-poly1305')
     combox_encrpMethod.current(7)
 
