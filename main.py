@@ -2,20 +2,13 @@
 
 import tkinter
 import tkinter.messagebox
+import socket
+import logging
 import json
 import re
 import os.path
 from random import randint
 from tkinter import ttk
-
-if os.path.exists('./svrcfg.json') == False:
-    with open("./svrcfg.json", 'w', encoding = 'utf-8') as fp:
-        list_localtestsvr = [{'svrIP':'192.168.1.1', 'svrPort':'8080', 'svrPass':'123456', 
-                    'encrpMethod':'chacha256', 'svrRmk':'Local'}]
-        json.dump(list_localtestsvr, fp)
-
-with open("./svrcfg.json", encoding = 'utf-8') as fp:
-    list_svrs = json.load(fp)
 
 rootWindow = tkinter.Tk()
 label_svrList = tkinter.Label(rootWindow)
@@ -38,8 +31,17 @@ entry_svrRmk = tkinter.Entry(rootWindow)
 label_ProxyPort = tkinter.Label(rootWindow)
 entry_ProxyPort = tkinter.Entry(rootWindow)
 
-PPshow = tkinter.IntVar()
-encrpMethod = tkinter.StringVar()
+int_PPshow = tkinter.IntVar()
+tuple_selectedSvr = tuple()
+list_svrs = list()
+tuple_encrpMethods = ('aes-256-cfb', 
+                'aes-128-cfb',
+                'chacha20', 
+                'chacha20-ietf',
+                'aes-256-gcm', 
+                'aes-128-gcm',
+                'chacha20-poly1305',
+                'chacha20-ietf-poly1305')
 
 def writeCfg():
     with open('./svrcfg.json', 'w', encoding = 'utf-8') as wfp:
@@ -54,6 +56,7 @@ def refreshsvrList():
             listbox_svrList.insert('end', dict_svr['svrRmk'])
 
 def checkSelected():
+    global tuple_selectedSvr
     tuple_selectedSvr = listbox_svrList.curselection()
     if not tuple_selectedSvr:
         tkinter.messagebox.showerror('ERROR', 'selected error')
@@ -87,7 +90,8 @@ def addSvr():
                   'encrpMethod':encrpMethod, 'svrRmk':svrRmk}
 
     for dict_svrincfg in list_svrs:
-        if dict_svrincfg['svrIP'] == dict_curSvr['svrIP']:
+        if dict_svrincfg['svrIP'] == dict_curSvr['svrIP'] and \
+           dict_svrincfg['svrPort'] == dict_curSvr['svrPort']:
             tkinter.messagebox.showwarning(title = 'ERROR',
                         message = 'This IP is already in your list')
             return
@@ -123,9 +127,8 @@ def connSvr():
     cursvrPass = list_svrs[curidx]['svrPass']
     cursvrPort = list_svrs[curidx]['svrPort']
     cursvrEncrp = list_svrs[curidx]['encrpMethod']
-    
-    
-    return
+
+    logging.error(msg = '1')
 
 def disconnSvr():
     if checkSelected() == False:
@@ -133,17 +136,11 @@ def disconnSvr():
     
     curidx = int(tuple_selectedSvr[0])
 
-
-    return 
-
 def showPassword():
-    if PPshow.get() == 0:
+    if int_PPshow.get() == 0:
         entry_svrPass.config(show = '*')
     else:
         entry_svrPass.config(show = '')
-
-def selectEncrpMethod():
-    encrpMethod = combox_encrpMethod.get()
 
 def initWindow():
     rootWindow.title('编辑服务器')
@@ -184,22 +181,16 @@ def initWindow():
     entry_svrPass.config(show = '*')
     entry_svrPass.place(x = 265, y = 90, width = 165, height = 20)
 
-    CekBtn_showPass.config(text = '显示密码', variable = PPshow, onvalue = 1, 
+    CekBtn_showPass.config(text = '显示密码', variable = int_PPshow, onvalue = 1, 
                            offvalue = 0, command = showPassword)
     CekBtn_showPass.place(x = 260, y = 120, height = 20)
 
     label_encrpMethod.config(text = '*加密方式')
     label_encrpMethod.place(x = 185, y = 150, width = 80, height = 20)
 
-    combox_encrpMethod.config(textvariable = encrpMethod)
     combox_encrpMethod.place(x = 265, y = 150, width = 165, height = 20)
-    combox_encrpMethod.bind("<<ComboboxSelected>>", selectEncrpMethod)
-    combox_encrpMethod['values'] = ('aes-256-cfb', 'aes-128-cfb',
-                                    'chacha20', 'chacha20-ietf',
-                                    'aes-256-gcm', 'aes-128-gcm',
-                                    'chacha20-poly1305',
-                                    'chacha20-ietf-poly1305')
-    combox_encrpMethod.current(7)
+    combox_encrpMethod['values'] = tuple_encrpMethods
+    combox_encrpMethod.current(0)
 
     label_svrRmk.config(text = '备注名称')
     label_svrRmk.place(x = 185, y = 180, width = 80, height = 20)
@@ -211,7 +202,28 @@ def initWindow():
 
     entry_ProxyPort.place(x = 265, y = 210, width = 165, height = 20)
 
+def initCfg():
+    global list_svrs
+    if os.path.exists('./svrcfg.json') == False:
+        with open("./svrcfg.json", 'w', encoding = 'utf-8') as fp:
+            list_localtestsvr = [{'svrIP':'192.168.1.1', 
+                                  'svrPort':'8080', 
+                                  'svrPass':'123456', 
+                                  'encrpMethod':'chacha256', 
+                                  'svrRmk':'Local'}]
+            json.dump(list_localtestsvr, fp)
 
+    with open("./svrcfg.json", encoding = 'utf-8') as fp:
+        list_svrs = json.load(fp)
+
+    logging.basicConfig(
+        filename = 'info.log',
+        level = logging.DEBUG,
+        format = '%(asctime)s [type:%(levelname)s] [line:%(lineno)d] %(message)s',
+        datefmt = '%Y-%m-%d %H:%M:%S'
+    )
+
+initCfg()
 initWindow()
 
 rootWindow.mainloop()
